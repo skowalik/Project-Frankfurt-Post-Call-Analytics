@@ -8,9 +8,6 @@
 		"InsightsDataLake_accountKey": {
 			"value": ""
 		},
-		"pfdeleteme0ws0-WorkspaceDefaultSqlServer_connectionString": {
-			"value": ""
-		},
 		"pfpostcallreference0sws0-WorkspaceDefaultSqlServer_connectionString": {
 			"value": ""
 		},
