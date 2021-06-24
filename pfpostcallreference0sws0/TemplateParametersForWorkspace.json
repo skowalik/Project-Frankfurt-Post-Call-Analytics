@@ -1,0 +1,27 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"value": "pfpostcallreference0sws0"
+		},
+		"InsightsDataLake_accountKey": {
+			"value": ""
+		},
+		"pfdeleteme0ws0-WorkspaceDefaultSqlServer_connectionString": {
+			"value": ""
+		},
+		"pfpostcallreference0sws0-WorkspaceDefaultSqlServer_connectionString": {
+			"value": ""
+		},
+		"pfpostcallreference0sypasepool0_connectionString": {
+			"value": ""
+		},
+		"InsightsDataLake_properties_typeProperties_url": {
+			"value": "https://pfpostcallreference0dl0.dfs.core.windows.net"
+		},
+		"pfpostcallreference0sws0-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"value": "https://pfpostcallreference0dl0.dfs.core.windows.net"
+		}
+	}
+}
