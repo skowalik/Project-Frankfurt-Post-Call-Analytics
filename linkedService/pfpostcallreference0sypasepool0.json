@@ -1,15 +1,15 @@
 {
 	"name": "pfpostcallreference0sypasepool0",
-	"type": "Microsoft.Synapse/workspaces/linkedservices",
 	"properties": {
 		"annotations": [],
 		"type": "AzureSqlDW",
 		"typeProperties": {
-			"connectionString": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=pfdeleteme0ws0.sql.azuresynapse.net;Initial Catalog=pfdeleteme0sqlp0"
+			"connectionString": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=pfpostcallreference0sws0.sql.azuresynapse.net;Initial Catalog=pfpostcallreference0sqlp0"
 		},
 		"connectVia": {
 			"referenceName": "AutoResolveIntegrationRuntime",
 			"type": "IntegrationRuntimeReference"
 		}
-	}
+	},
+	"type": "Microsoft.Synapse/workspaces/linkedservices"
 }
