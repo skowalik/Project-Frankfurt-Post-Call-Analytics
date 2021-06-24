@@ -1,0 +1,70 @@
+{
+	"name": "InsightsFlow",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "InsightsDataLake",
+						"type": "LinkedServiceReference"
+					},
+					"name": "InsightsSource"
+				}
+			],
+			"sinks": [
+				{
+					"linkedService": {
+						"referenceName": "pfpostcallreference0sypasepool0",
+						"type": "LinkedServiceReference"
+					},
+					"name": "InsightsSink"
+				},
+				{
+					"linkedService": {
+						"referenceName": "pfpostcallreference0sypasepool0",
+						"type": "LinkedServiceReference"
+					},
+					"name": "TranscriptSink"
+				},
+				{
+					"linkedService": {
+						"referenceName": "pfpostcallreference0sypasepool0",
+						"type": "LinkedServiceReference"
+					},
+					"name": "ReasonsSink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "ItemsFlatten"
+				},
+				{
+					"name": "InsightsSelect"
+				},
+				{
+					"name": "ReasonsSelect"
+				},
+				{
+					"name": "TranscriptSelect"
+				},
+				{
+					"name": "InsightsChannelDerive"
+				},
+				{
+					"name": "TranscriptFlatten"
+				},
+				{
+					"name": "ReasonsFlatten"
+				},
+				{
+					"name": "TranscriptChannelDerive"
+				},
+				{
+					"name": "ReasonsChannelDerive"
+				}
+			],
+			"script": "source(output(\n\t\tItems as (ChannelId as boolean, Confidence as double, DisplayText as string, Duration as double, HotPhrase as string, InsightId as string, Language as string, MatchLength as short, MatchStartIdx as short, MatchedText as string, PhraseId as string, Reasons as (CallReasonSpan as (Channel as boolean, Display as string, Duration as integer, ITN as string, Lexical as string, MaskedITN as string, Offset as integer, PhraseId as string)[], StartOffset as short)[], SentimentScore as double, StartAudioOffset as double, Type as string, transcript as (Channel as boolean, Display as string, Duration as integer, ITN as string, Lexical as string, MaskedITN as string, Offset as integer, PhraseId as string, RedactedAudioSpans as (Duration as short, StartOffset as integer)[], RedactedDisplaySpans as (Length as short, StartIndex as short)[], RedactedITNSpans as (Length as short, StartIndex as short)[], RedactedLexicalSpans as (Length as short, StartIndex as short)[], RedactedMaskedITNSpans as (Length as short, StartIndex as short)[])[])[]\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tinferDriftedColumnTypes: true,\n\tignoreNoFilesFound: false,\n\trowUrlColumn: 'FileName',\n\tformat: 'json',\n\tfileSystem: 'pfinsights',\n\tdocumentForm: 'arrayOfDocuments') ~> InsightsSource\nInsightsSource foldDown(unroll(Items),\n\tmapColumn(\n\t\tChannelId = Items.ChannelId,\n\t\tConfidence = Items.Confidence,\n\t\tDisplayText = Items.DisplayText,\n\t\tDuration = Items.Duration,\n\t\tHotPhrase = Items.HotPhrase,\n\t\tInsightId = Items.InsightId,\n\t\tLanguage = Items.Language,\n\t\tMatchLength = Items.MatchLength,\n\t\tMatchStartIdx = Items.MatchStartIdx,\n\t\tMatchedText = Items.MatchedText,\n\t\tPhraseId = Items.PhraseId,\n\t\tReasons = Items.Reasons,\n\t\tSentimentScore = Items.SentimentScore,\n\t\tStartAudioOffset = Items.StartAudioOffset,\n\t\tType = Items.Type,\n\t\ttranscript = Items.transcript,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> ItemsFlatten\nItemsFlatten select(mapColumn(\n\t\tChannelId,\n\t\tConfidence,\n\t\tDisplayText,\n\t\tDuration,\n\t\tHotPhrase,\n\t\tInsightId,\n\t\tLanguage,\n\t\tMatchLength,\n\t\tMatchStartIdx,\n\t\tMatchedText,\n\t\tPhraseId,\n\t\tSentimentScore,\n\t\tStartAudioOffset,\n\t\tType,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InsightsSelect\nItemsFlatten select(mapColumn(\n\t\tFileName,\n\t\tReasons\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ReasonsSelect\nItemsFlatten select(mapColumn(\n\t\ttranscript,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> TranscriptSelect\nInsightsSelect derive(ChannelId = iif(ChannelId, \"Customer\", \"Agent\")) ~> InsightsChannelDerive\nTranscriptSelect foldDown(unroll(transcript),\n\tmapColumn(\n\t\tChannel = transcript.Channel,\n\t\tDisplay = transcript.Display,\n\t\tDuration = transcript.Duration,\n\t\tITN = transcript.ITN,\n\t\tLexical = transcript.Lexical,\n\t\tMaskedITN = transcript.MaskedITN,\n\t\tOffset = transcript.Offset,\n\t\tPhraseId = transcript.PhraseId,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> TranscriptFlatten\nReasonsSelect foldDown(unroll(Reasons.CallReasonSpan),\n\tmapColumn(\n\t\tChannel = Reasons.CallReasonSpan.Channel,\n\t\tDisplay = Reasons.CallReasonSpan.Display,\n\t\tDuration = Reasons.CallReasonSpan.Duration,\n\t\tITN = Reasons.CallReasonSpan.ITN,\n\t\tLexical = Reasons.CallReasonSpan.Lexical,\n\t\tMaskedITN = Reasons.CallReasonSpan.MaskedITN,\n\t\tOffset = Reasons.CallReasonSpan.Offset,\n\t\tPhraseId = Reasons.CallReasonSpan.PhraseId,\n\t\tStartOffset = Reasons.StartOffset,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> ReasonsFlatten\nTranscriptFlatten derive(Channel = iif(Channel, \"Customer\", \"Agent\")) ~> TranscriptChannelDerive\nReasonsFlatten derive(Channel = iif(Channel, \"Customer\", \"Agent\")) ~> ReasonsChannelDerive\nInsightsChannelDerive sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'table',\n\tstore: 'synapseanalytics',\n\tschemaName: 'dbo',\n\ttableName: 'insights',\n\tinsertable: true,\n\tupdateable: false,\n\tdeletable: false,\n\tupsertable: false,\n\trecreate: true,\n\tstaged: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InsightsSink\nTranscriptChannelDerive sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'table',\n\tstore: 'synapseanalytics',\n\tschemaName: 'dbo',\n\ttableName: 'transcript',\n\tinsertable: true,\n\tupdateable: false,\n\tdeletable: false,\n\tupsertable: false,\n\trecreate: true,\n\tstaged: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> TranscriptSink\nReasonsChannelDerive sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'table',\n\tstore: 'synapseanalytics',\n\tschemaName: 'dbo',\n\ttableName: 'reasons',\n\tinsertable: true,\n\tupdateable: false,\n\tdeletable: false,\n\tupsertable: false,\n\trecreate: true,\n\tstaged: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ReasonsSink"
+		}
+	}
+}

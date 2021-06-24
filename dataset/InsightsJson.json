@@ -1,0 +1,52 @@
+{
+	"name": "InsightsJson",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "InsightsDataLake",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileSystem": "pfinsights"
+			}
+		},
+		"schema": {
+			"type": "object",
+			"properties": {
+				"Items": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"Type": {
+								"type": "string"
+							},
+							"DisplayText": {
+								"type": "string"
+							},
+							"StartAudioOffset": {
+								"type": "number"
+							},
+							"Duration": {
+								"type": "number"
+							},
+							"PhraseId": {
+								"type": "string"
+							},
+							"Language": {
+								"type": "string"
+							},
+							"ChannelId": {
+								"type": "string"
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

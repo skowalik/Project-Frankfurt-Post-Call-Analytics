@@ -1,0 +1,154 @@
+{
+	"name": "Call Duration Notebook",
+	"properties": {
+		"nbformat": 0,
+		"nbformat_minor": 0,
+		"bigDataPool": {
+			"referenceName": "postcall0spark0",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "56g",
+			"driverCores": 8,
+			"executorMemory": "56g",
+			"executorCores": 8,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/4a49a7f9-5e11-4cda-83e2-badfc3f2db28/resourceGroups/pfpostcallreference0rg0/providers/Microsoft.Synapse/workspaces/pfpostcallreference0sws0/bigDataPools/postcall0spark0",
+				"name": "postcall0spark0",
+				"type": "Spark",
+				"endpoint": "https://pfpostcallreference0sws0.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/postcall0spark0",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 8,
+				"memory": 56,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "scala"
+					}
+				},
+				"source": [
+					"%%spark\n",
+					"val sql_pool = \"pfpostcallreference0sqlp0\"\n",
+					"val df = spark.read.sqlanalytics(\"%s.dbo.transcript\".format(sql_pool)) \n",
+					"df.createOrReplaceTempView( \"transcript\" )"
+				],
+				"attachments": null,
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "python"
+					},
+					"collapsed": true
+				},
+				"source": [
+					"%%pyspark\r\n",
+					"# Calculate call duration using transcript information\r\n",
+					"\r\n",
+					"# Get 'transcripts dataframe'\r\n",
+					"df = spark.sql(\"SELECT FileName, Offset, Duration FROM transcript\")\r\n",
+					"\r\n",
+					"# Get highest 'Offset' for given 'FileName'\r\n",
+					"df_max_offset = df.select(\"*\").distinct().groupBy(\"FileName\").max(\"Offset\")\r\n",
+					"\r\n",
+					"# Get last 'Offset' and 'Duration' for a given 'FileName'\r\n",
+					"df_end_offset = df.join(df_max_offset, [\"FileName\"]) \\\r\n",
+					"                    .where(df[\"Offset\"] == df_max_offset[\"max(Offset)\"]) \\\r\n",
+					"                    .where(df[\"FileName\"] == df_max_offset[\"FileName\"]) \\\r\n",
+					"                    .drop(\"max(Offset)\")\r\n",
+					"\r\n",
+					"# Caculate 'EndOffset' for each 'FileName'\r\n",
+					"df_end_offset = df_end_offset.withColumn(\"callDurationTime\", (df_end_offset[\"Offset\"] + df_end_offset[\"Duration\"]) / 1000.0).distinct()\r\n",
+					"\r\n",
+					"# Create temp View of dataframe results\r\n",
+					"df_end_offset.createOrReplaceTempView(\"callDuration\")\r\n",
+					"df_end_offset.show()"
+				],
+				"attachments": null,
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "scala"
+					},
+					"collapsed": true
+				},
+				"source": [
+					"%%spark\r\n",
+					"val scala_df = spark.sqlContext.sql(\"select * from callDuration\")\r\n",
+					"scala_df.write.sqlanalytics(\"%s.dbo.callDuration\".format(sql_pool), Constants.INTERNAL)"
+				],
+				"attachments": null,
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": true
+				},
+				"source": [
+					""
+				],
+				"attachments": null,
+				"execution_count": null
+			}
+		]
+	}
+}
