@@ -1,15 +1,15 @@
 {
 	"name": "pfpostcallreference0sws0-WorkspaceDefaultStorage",
+	"type": "Microsoft.Synapse/workspaces/linkedservices",
 	"properties": {
-		"annotations": [],
-		"type": "AzureBlobFS",
 		"typeProperties": {
-			"url": "https://pfpostcall0dl0.dfs.core.windows.net"
+			"url": "https://pfpostcallreference0dl0.dfs.core.windows.net"
 		},
+		"type": "AzureBlobFS",
 		"connectVia": {
 			"referenceName": "AutoResolveIntegrationRuntime",
 			"type": "IntegrationRuntimeReference"
-		}
-	},
-	"type": "Microsoft.Synapse/workspaces/linkedservices"
+		},
+		"annotations": []
+	}
 }
