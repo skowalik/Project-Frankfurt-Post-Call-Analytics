@@ -8,6 +8,9 @@
 		"InsightsDataLake_accountKey": {
 			"value": ""
 		},
+		"pfpostcall0ws0-WorkspaceDefaultSqlServer_connectionString": {
+			"value": ""
+		},
 		"pfpostcallreference0sws0-WorkspaceDefaultSqlServer_connectionString": {
 			"value": ""
 		},
@@ -16,6 +19,9 @@
 		},
 		"InsightsDataLake_properties_typeProperties_url": {
 			"value": "https://pfpostcallreference0dl0.dfs.core.windows.net"
+		},
+		"pfpostcall0ws0-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"value": "https://pfpostcall0dl0.dfs.core.windows.net"
 		},
 		"pfpostcallreference0sws0-WorkspaceDefaultStorage_properties_typeProperties_url": {
 			"value": "https://pfpostcallreference0dl0.dfs.core.windows.net"
