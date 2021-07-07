@@ -1,0 +1,1668 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "aia-workspace"
+		},
+		"InsightsDataLake_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'InsightsDataLake'"
+		},
+		"aia-workspace-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'aia-workspace-WorkspaceDefaultSqlServer'"
+		},
+		"pfpostcallreference0sws0-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'pfpostcallreference0sws0-WorkspaceDefaultSqlServer'"
+		},
+		"pfpostcallreference0sypasepool0_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'pfpostcallreference0sypasepool0'"
+		},
+		"InsightsDataLake_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://pfpostcallreference0dl0.dfs.core.windows.net"
+		},
+		"aia-workspace-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://aialake.dfs.core.windows.net"
+		},
+		"pfpostcallreference0sws0-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://pfpostcallreference0dl0.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/InsightsPipeline')]",
+			"type": "Microsoft.Synapse/workspaces/pipelines",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"activities": [
+					{
+						"name": "InsightsDataFlow",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "1.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "InsightsFlow",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"InsightsSource": {},
+									"InsightsSink": {},
+									"TranscriptSink": {},
+									"ReasonsSink": {}
+								}
+							},
+							"staging": {
+								"linkedService": {
+									"referenceName": "pfpostcallreference0sws0-WorkspaceDefaultStorage",
+									"type": "LinkedServiceReference"
+								},
+								"folderPath": "pfpostcallreference0fs0"
+							},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "Call Duration Notebook",
+						"type": "SynapseNotebook",
+						"dependsOn": [
+							{
+								"activity": "InsightsDataFlow",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebook": {
+								"referenceName": "Call Duration Notebook",
+								"type": "NotebookReference"
+							},
+							"snapshot": true
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-06-03T22:11:13Z"
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/dataflows/InsightsFlow')]",
+				"[concat(variables('workspaceId'), '/linkedServices/pfpostcallreference0sws0-WorkspaceDefaultStorage')]",
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]",
+				"[concat(variables('workspaceId'), '/notebooks/Call Duration Notebook')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/InsightsJson')]",
+			"type": "Microsoft.Synapse/workspaces/datasets",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "InsightsDataLake",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileSystem": "pfinsights"
+					}
+				},
+				"schema": {
+					"type": "object",
+					"properties": {
+						"Items": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"Type": {
+										"type": "string"
+									},
+									"DisplayText": {
+										"type": "string"
+									},
+									"StartAudioOffset": {
+										"type": "number"
+									},
+									"Duration": {
+										"type": "number"
+									},
+									"PhraseId": {
+										"type": "string"
+									},
+									"Language": {
+										"type": "string"
+									},
+									"ChannelId": {
+										"type": "string"
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/InsightsDataLake')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/InsightsDataLake')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('InsightsDataLake_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('InsightsDataLake_accountKey')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/PowerBIWorkspaceSynapse')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "PowerBIWorkspace",
+				"typeProperties": {
+					"workspaceID": "4381bae3-dbf0-4228-b151-56d71a2ab4ff",
+					"tenantID": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/aia-workspace-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('aia-workspace-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/aia-workspace-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('aia-workspace-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pfpostcallreference0sws0-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('pfpostcallreference0sws0-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pfpostcallreference0sws0-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('pfpostcallreference0sws0-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/pfpostcallreference0sypasepool0')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('pfpostcallreference0sypasepool0_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/postcallreference0pbi0')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "PowerBIWorkspace",
+				"typeProperties": {
+					"workspaceID": "2b22a99c-27bf-4d76-8a06-3e6c0b4e4cc2",
+					"tenantID": "72f988bf-86f1-41af-91ab-2d7cd011db47"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/InsightsFlow')]",
+			"type": "Microsoft.Synapse/workspaces/dataflows",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"linkedService": {
+								"referenceName": "InsightsDataLake",
+								"type": "LinkedServiceReference"
+							},
+							"name": "InsightsSource"
+						}
+					],
+					"sinks": [
+						{
+							"linkedService": {
+								"referenceName": "pfpostcallreference0sypasepool0",
+								"type": "LinkedServiceReference"
+							},
+							"name": "InsightsSink"
+						},
+						{
+							"linkedService": {
+								"referenceName": "pfpostcallreference0sypasepool0",
+								"type": "LinkedServiceReference"
+							},
+							"name": "TranscriptSink"
+						},
+						{
+							"linkedService": {
+								"referenceName": "pfpostcallreference0sypasepool0",
+								"type": "LinkedServiceReference"
+							},
+							"name": "ReasonsSink"
+						}
+					],
+					"transformations": [
+						{
+							"name": "ItemsFlatten"
+						},
+						{
+							"name": "InsightsSelect"
+						},
+						{
+							"name": "ReasonsSelect"
+						},
+						{
+							"name": "TranscriptSelect"
+						},
+						{
+							"name": "InsightsChannelDerive"
+						},
+						{
+							"name": "TranscriptFlatten"
+						},
+						{
+							"name": "ReasonsFlatten"
+						},
+						{
+							"name": "TranscriptChannelDerive"
+						},
+						{
+							"name": "ReasonsChannelDerive"
+						}
+					],
+					"script": "source(output(\n\t\tItems as (ChannelId as boolean, Confidence as double, DisplayText as string, Duration as double, HotPhrase as string, InsightId as string, Language as string, MatchLength as short, MatchStartIdx as short, MatchedText as string, PhraseId as string, Reasons as (CallReasonSpan as (Channel as boolean, Display as string, Duration as integer, ITN as string, Lexical as string, MaskedITN as string, Offset as integer, PhraseId as string)[], StartOffset as short)[], SentimentScore as double, StartAudioOffset as double, Type as string, transcript as (Channel as boolean, Display as string, Duration as integer, ITN as string, Lexical as string, MaskedITN as string, Offset as integer, PhraseId as string, RedactedAudioSpans as (Duration as short, StartOffset as integer)[], RedactedDisplaySpans as (Length as short, StartIndex as short)[], RedactedITNSpans as (Length as short, StartIndex as short)[], RedactedLexicalSpans as (Length as short, StartIndex as short)[], RedactedMaskedITNSpans as (Length as short, StartIndex as short)[])[])[]\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tinferDriftedColumnTypes: true,\n\tignoreNoFilesFound: false,\n\trowUrlColumn: 'FileName',\n\tformat: 'json',\n\tfileSystem: 'pfinsights',\n\tdocumentForm: 'arrayOfDocuments') ~> InsightsSource\nInsightsSource foldDown(unroll(Items),\n\tmapColumn(\n\t\tChannelId = Items.ChannelId,\n\t\tConfidence = Items.Confidence,\n\t\tDisplayText = Items.DisplayText,\n\t\tDuration = Items.Duration,\n\t\tHotPhrase = Items.HotPhrase,\n\t\tInsightId = Items.InsightId,\n\t\tLanguage = Items.Language,\n\t\tMatchLength = Items.MatchLength,\n\t\tMatchStartIdx = Items.MatchStartIdx,\n\t\tMatchedText = Items.MatchedText,\n\t\tPhraseId = Items.PhraseId,\n\t\tReasons = Items.Reasons,\n\t\tSentimentScore = Items.SentimentScore,\n\t\tStartAudioOffset = Items.StartAudioOffset,\n\t\tType = Items.Type,\n\t\ttranscript = Items.transcript,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> ItemsFlatten\nItemsFlatten select(mapColumn(\n\t\tChannelId,\n\t\tConfidence,\n\t\tDisplayText,\n\t\tDuration,\n\t\tHotPhrase,\n\t\tInsightId,\n\t\tLanguage,\n\t\tMatchLength,\n\t\tMatchStartIdx,\n\t\tMatchedText,\n\t\tPhraseId,\n\t\tSentimentScore,\n\t\tStartAudioOffset,\n\t\tType,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InsightsSelect\nItemsFlatten select(mapColumn(\n\t\tFileName,\n\t\tReasons\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ReasonsSelect\nItemsFlatten select(mapColumn(\n\t\ttranscript,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> TranscriptSelect\nInsightsSelect derive(ChannelId = iif(ChannelId, \"Customer\", \"Agent\")) ~> InsightsChannelDerive\nTranscriptSelect foldDown(unroll(transcript),\n\tmapColumn(\n\t\tChannel = transcript.Channel,\n\t\tDisplay = transcript.Display,\n\t\tDuration = transcript.Duration,\n\t\tITN = transcript.ITN,\n\t\tLexical = transcript.Lexical,\n\t\tMaskedITN = transcript.MaskedITN,\n\t\tOffset = transcript.Offset,\n\t\tPhraseId = transcript.PhraseId,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> TranscriptFlatten\nReasonsSelect foldDown(unroll(Reasons.CallReasonSpan),\n\tmapColumn(\n\t\tChannel = Reasons.CallReasonSpan.Channel,\n\t\tDisplay = Reasons.CallReasonSpan.Display,\n\t\tDuration = Reasons.CallReasonSpan.Duration,\n\t\tITN = Reasons.CallReasonSpan.ITN,\n\t\tLexical = Reasons.CallReasonSpan.Lexical,\n\t\tMaskedITN = Reasons.CallReasonSpan.MaskedITN,\n\t\tOffset = Reasons.CallReasonSpan.Offset,\n\t\tPhraseId = Reasons.CallReasonSpan.PhraseId,\n\t\tStartOffset = Reasons.StartOffset,\n\t\tFileName\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> ReasonsFlatten\nTranscriptFlatten derive(Channel = iif(Channel, \"Customer\", \"Agent\")) ~> TranscriptChannelDerive\nReasonsFlatten derive(Channel = iif(Channel, \"Customer\", \"Agent\")) ~> ReasonsChannelDerive\nInsightsChannelDerive sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'table',\n\tstore: 'synapseanalytics',\n\tschemaName: 'dbo',\n\ttableName: 'insights',\n\tinsertable: true,\n\tupdateable: false,\n\tdeletable: false,\n\tupsertable: false,\n\trecreate: true,\n\tstaged: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> InsightsSink\nTranscriptChannelDerive sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'table',\n\tstore: 'synapseanalytics',\n\tschemaName: 'dbo',\n\ttableName: 'transcript',\n\tinsertable: true,\n\tupdateable: false,\n\tdeletable: false,\n\tupsertable: false,\n\trecreate: true,\n\tstaged: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> TranscriptSink\nReasonsChannelDerive sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tformat: 'table',\n\tstore: 'synapseanalytics',\n\tschemaName: 'dbo',\n\ttableName: 'reasons',\n\tinsertable: true,\n\tupdateable: false,\n\tdeletable: false,\n\tupsertable: false,\n\trecreate: true,\n\tstaged: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> ReasonsSink"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/linkedServices/InsightsDataLake')]",
+				"[concat(variables('workspaceId'), '/linkedServices/pfpostcallreference0sypasepool0')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/1 Analyze Using Serverless SQL Pool')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n            BULK '/users/NYCTripSmall.parquet',\n            DATA_SOURCE = 'AIALake',\n            FORMAT='PARQUET'\n    ) AS [result]",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"poolName": "Built-in",
+						"databaseName": "DataExplorationDB"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/2 Analyze Using Dedicated SQL Pool')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "IF NOT EXISTS (SELECT * FROM sys.objects O JOIN sys.schemas S ON O.schema_id = S.schema_id WHERE O.NAME = 'NYCTaxiTripSmall' AND O.TYPE = 'U' AND S.NAME = 'dbo')\n CREATE TABLE dbo.NYCTaxiTripSmall\n \t(\n \t [DateID] int,\n \t [MedallionID] int,\n \t [HackneyLicenseID] int,\n \t [PickupTimeID] int,\n \t [DropoffTimeID] int,\n \t [PickupGeographyID] int,\n \t [DropoffGeographyID] int,\n \t [PickupLatitude] float,\n \t [PickupLongitude] float,\n \t [PickupLatLong] nvarchar(4000),\n \t [DropoffLatitude] float,\n \t [DropoffLongitude] float,\n \t [DropoffLatLong] nvarchar(4000),\n \t [PassengerCount] int,\n \t [TripDurationSeconds] int,\n \t [TripDistanceMiles] float,\n \t [PaymentType] nvarchar(4000),\n \t [FareAmount] numeric(19,4),\n \t [SurchargeAmount] numeric(19,4),\n \t [TaxAmount] numeric(19,4),\n \t [TipAmount] numeric(19,4),\n \t [TollsAmount] numeric(19,4),\n \t [TotalAmount] numeric(19,4)\n \t)\n WITH\n \t(DISTRIBUTION = ROUND_ROBIN,\n \t CLUSTERED COLUMNSTORE INDEX\n \t -- HEAP\n \t)\n GO\n\n COPY INTO dbo.NYCTaxiTripSmall\n (DateID 1, MedallionID 2, HackneyLicenseID 3, PickupTimeID 4, DropoffTimeID 5,\n PickupGeographyID 6, DropoffGeographyID 7, PickupLatitude 8, PickupLongitude 9, \n PickupLatLong 10, DropoffLatitude 11, DropoffLongitude 12, DropoffLatLong 13, \n PassengerCount 14, TripDurationSeconds 15, TripDistanceMiles 16, PaymentType 17, \n FareAmount 18, SurchargeAmount 19, TaxAmount 20, TipAmount 21, TollsAmount 22, \n TotalAmount 23)\n FROM 'https://aialake.dfs.core.windows.net/users/NYCTripSmall.parquet'\n WITH\n (\n \tFILE_TYPE = 'PARQUET'\n \t,MAXERRORS = 0\n \t,IDENTITY_INSERT = 'OFF'\n )",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"poolName": "SQLPOOL1",
+						"databaseName": "SQLPOOL1"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/3 Explore SQL Dedicated Pool')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT PassengerCount,\n      SUM(TripDistanceMiles) as SumTripDistance,\n      AVG(TripDistanceMiles) as AvgTripDistance\nFROM  dbo.NYCTaxiTripSmall\nWHERE TripDistanceMiles > 0 AND PassengerCount > 0\nGROUP BY PassengerCount\nORDER BY PassengerCount;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"poolName": "SQLPOOL1",
+						"databaseName": "SQLPOOL1"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/4 View SQL Data')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT\n    TOP 100 *\nFROM\n    OPENROWSET(\n        BULK 'https://aialake.dfs.core.windows.net/users/NYCTaxi/PassengerCountStats_parquetformat/part-00000-a6090d0f-8375-439d-ade8-de7785605607-c000.snappy.parquet',\n        FORMAT='PARQUET'\n    ) AS [result]\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"poolName": "Built-in",
+						"databaseName": "master"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Analyze Spark Pool NYC Taxi')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "Spark1",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"synapse_widget": {
+						"version": "0.1",
+						"state": {
+							"adf353ba-c58b-492f-a4b9-07b74b76cf16": {
+								"type": "Synapse.DataFrame",
+								"sync_state": {
+									"table": {
+										"rows": [
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 63879,
+												"PickupLongitude": -73.9513,
+												"DropoffTimeID": 64392,
+												"TollsAmount": 0,
+												"TotalAmount": 9,
+												"PickupLatLong": "40.8124,-73.9513",
+												"TripDistanceMiles": 1.3,
+												"PickupGeographyID": 172348,
+												"DropoffGeographyID": 219532,
+												"TripDurationSeconds": 513,
+												"SurchargeAmount": 1,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.7982,-73.9444",
+												"DropoffLongitude": -73.9444,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.7982,
+												"PickupLatitude": 40.8124,
+												"HackneyLicenseID": 35117,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 7.5,
+												"MedallionID": 10624
+											},
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 61733,
+												"PickupLongitude": -73.9857,
+												"DropoffTimeID": 62114,
+												"TollsAmount": 0,
+												"TotalAmount": 8.5,
+												"PickupLatLong": "40.7352,-73.9857",
+												"TripDistanceMiles": 1.3,
+												"PickupGeographyID": 87083,
+												"DropoffGeographyID": 137768,
+												"TripDurationSeconds": 380,
+												"SurchargeAmount": 1,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.751,-73.9789",
+												"DropoffLongitude": -73.9789,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.751,
+												"PickupLatitude": 40.7352,
+												"HackneyLicenseID": 11597,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 7,
+												"MedallionID": 7263
+											},
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 59488,
+												"PickupLongitude": -73.9483,
+												"DropoffTimeID": 59815,
+												"TollsAmount": 0,
+												"TotalAmount": 7.5,
+												"PickupLatLong": "40.7699,-73.9483",
+												"TripDistanceMiles": 1,
+												"PickupGeographyID": 82160,
+												"DropoffGeographyID": 146431,
+												"TripDurationSeconds": 326,
+												"SurchargeAmount": 1,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.763,-73.962",
+												"DropoffLongitude": -73.962,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.763,
+												"PickupLatitude": 40.7699,
+												"HackneyLicenseID": 5301,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 6,
+												"MedallionID": 1899
+											},
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 69093,
+												"PickupLongitude": -73.9746,
+												"DropoffTimeID": 69548,
+												"TollsAmount": 0,
+												"TotalAmount": 8.5,
+												"PickupLatLong": "40.7507,-73.9746",
+												"TripDistanceMiles": 1,
+												"PickupGeographyID": 276342,
+												"DropoffGeographyID": 43408,
+												"TripDurationSeconds": 454,
+												"SurchargeAmount": 1,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.7428,-73.9823",
+												"DropoffLongitude": -73.9823,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.7428,
+												"PickupLatitude": 40.7507,
+												"HackneyLicenseID": 28727,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 7,
+												"MedallionID": 9471
+											},
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 51720,
+												"PickupLongitude": -74.0119,
+												"DropoffTimeID": 52440,
+												"TollsAmount": 0,
+												"TotalAmount": 20,
+												"PickupLatLong": "40.7138,-74.0119",
+												"TripDistanceMiles": 6.11,
+												"PickupGeographyID": 155260,
+												"DropoffGeographyID": 211054,
+												"TripDurationSeconds": 720,
+												"SurchargeAmount": 0,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.7494,-73.9694",
+												"DropoffLongitude": -73.9694,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.7494,
+												"PickupLatitude": 40.7138,
+												"HackneyLicenseID": 16124,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 19.5,
+												"MedallionID": 2556
+											},
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 31260,
+												"PickupLongitude": -73.9773,
+												"DropoffTimeID": 32100,
+												"TollsAmount": 0,
+												"TotalAmount": 12,
+												"PickupLatLong": "40.726,-73.9773",
+												"TripDistanceMiles": 2.16,
+												"PickupGeographyID": 263305,
+												"DropoffGeographyID": 80576,
+												"TripDurationSeconds": 840,
+												"SurchargeAmount": 0,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.749,-73.9838",
+												"DropoffLongitude": -73.9838,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.749,
+												"PickupLatitude": 40.726,
+												"HackneyLicenseID": 33809,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 11.5,
+												"MedallionID": 1433
+											},
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 18150,
+												"PickupLongitude": -74.008,
+												"DropoffTimeID": 20112,
+												"TollsAmount": 0,
+												"TotalAmount": 33,
+												"PickupLatLong": "40.7421,-74.008",
+												"TripDistanceMiles": 9.2,
+												"PickupGeographyID": 26661,
+												"DropoffGeographyID": 108578,
+												"TripDurationSeconds": 1962,
+												"SurchargeAmount": 0.5,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.757,-73.8866",
+												"DropoffLongitude": -73.8866,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.757,
+												"PickupLatitude": 40.7421,
+												"HackneyLicenseID": 7842,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 32,
+												"MedallionID": 1486
+											},
+											{
+												"TipAmount": 0,
+												"PickupTimeID": 37020,
+												"PickupLongitude": -73.8637,
+												"DropoffTimeID": 38460,
+												"TollsAmount": 0,
+												"TotalAmount": 41,
+												"PickupLatLong": "40.7697,-73.8637",
+												"TripDistanceMiles": 14.78,
+												"PickupGeographyID": 147003,
+												"DropoffGeographyID": 70493,
+												"TripDurationSeconds": 1440,
+												"SurchargeAmount": 0,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.6519,-74.0064",
+												"DropoffLongitude": -74.0064,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.6519,
+												"PickupLatitude": 40.7697,
+												"HackneyLicenseID": 36224,
+												"PassengerCount": 1,
+												"PaymentType": "CSH",
+												"FareAmount": 40.5,
+												"MedallionID": 7225
+											},
+											{
+												"TipAmount": 4.35,
+												"PickupTimeID": 64740,
+												"PickupLongitude": -74.0022,
+												"DropoffTimeID": 65700,
+												"TollsAmount": 0,
+												"TotalAmount": 19.35,
+												"PickupLatLong": "40.7263,-74.0022",
+												"TripDistanceMiles": 3.25,
+												"PickupGeographyID": 230937,
+												"DropoffGeographyID": 116813,
+												"TripDurationSeconds": 960,
+												"SurchargeAmount": 1,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.7555,-73.9729",
+												"DropoffLongitude": -73.9729,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.7555,
+												"PickupLatitude": 40.7263,
+												"HackneyLicenseID": 35009,
+												"PassengerCount": 1,
+												"PaymentType": "CRD",
+												"FareAmount": 13.5,
+												"MedallionID": 8726
+											},
+											{
+												"TipAmount": 3.75,
+												"PickupTimeID": 66600,
+												"PickupLongitude": -73.9822,
+												"DropoffTimeID": 67260,
+												"TollsAmount": 0,
+												"TotalAmount": 19.25,
+												"PickupLatLong": "40.7698,-73.9822",
+												"TripDistanceMiles": 3.92,
+												"PickupGeographyID": 225983,
+												"DropoffGeographyID": 76697,
+												"TripDurationSeconds": 660,
+												"SurchargeAmount": 1,
+												"DateID": 20131231,
+												"DropoffLatLong": "40.8166,-73.9605",
+												"DropoffLongitude": -73.9605,
+												"TaxAmount": 0.5,
+												"DropoffLatitude": 40.8166,
+												"PickupLatitude": 40.7698,
+												"HackneyLicenseID": 30912,
+												"PassengerCount": 1,
+												"PaymentType": "CRD",
+												"FareAmount": 14,
+												"MedallionID": 573
+											}
+										],
+										"schema": {
+											"DateID": "int",
+											"MedallionID": "int",
+											"HackneyLicenseID": "int",
+											"PickupTimeID": "int",
+											"DropoffTimeID": "int",
+											"PickupGeographyID": "int",
+											"DropoffGeographyID": "int",
+											"PickupLatitude": "double",
+											"PickupLongitude": "double",
+											"PickupLatLong": "string",
+											"DropoffLatitude": "double",
+											"DropoffLongitude": "double",
+											"DropoffLatLong": "string",
+											"PassengerCount": "int",
+											"TripDurationSeconds": "int",
+											"TripDistanceMiles": "double",
+											"PaymentType": "string",
+											"FareAmount": "decimal",
+											"SurchargeAmount": "decimal",
+											"TaxAmount": "decimal",
+											"TipAmount": "decimal",
+											"TollsAmount": "decimal",
+											"TotalAmount": "decimal"
+										}
+									},
+									"isSummary": false,
+									"language": "scala"
+								},
+								"persist_state": {
+									"view": {
+										"type": "details",
+										"chartOptions": {
+											"chartType": "bar",
+											"aggregationType": "sum",
+											"categoryFieldKeys": [
+												"MedallionID"
+											],
+											"seriesFieldKeys": [
+												"DateID"
+											],
+											"isStacked": false
+										}
+									}
+								}
+							},
+							"625c2939-b8ea-447f-a1e2-1a45cbe6054d": {
+								"type": "Synapse.DataFrame",
+								"sync_state": {
+									"table": {
+										"rows": [
+											{
+												"PassengerCount": 1,
+												"SumTripDistance": 190167.33999999636,
+												"AvgTripDistance": 2.8735733929704184
+											},
+											{
+												"PassengerCount": 2,
+												"SumTripDistance": 49399.7400000001,
+												"AvgTripDistance": 3.130726915520635
+											},
+											{
+												"PassengerCount": 3,
+												"SumTripDistance": 14790.389999999987,
+												"AvgTripDistance": 2.884803978935047
+											},
+											{
+												"PassengerCount": 4,
+												"SumTripDistance": 8558.350000000004,
+												"AvgTripDistance": 2.9976707530648
+											},
+											{
+												"PassengerCount": 5,
+												"SumTripDistance": 17187.240000000013,
+												"AvgTripDistance": 2.8550232558139554
+											},
+											{
+												"PassengerCount": 6,
+												"SumTripDistance": 10741.91,
+												"AvgTripDistance": 2.8798686327077747
+											}
+										],
+										"schema": {
+											"PassengerCount": "int",
+											"SumTripDistance": "double",
+											"AvgTripDistance": "double"
+										}
+									},
+									"isSummary": false,
+									"language": "scala"
+								},
+								"persist_state": {
+									"view": {
+										"type": "details",
+										"chartOptions": {
+											"chartType": "bar",
+											"aggregationType": "sum",
+											"categoryFieldKeys": [
+												"SumTripDistance"
+											],
+											"seriesFieldKeys": [
+												"PassengerCount"
+											],
+											"isStacked": false
+										}
+									}
+								}
+							}
+						}
+					},
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/dfccc97d-46f9-435b-bcfe-6be712e9cf56/resourceGroups/Synapse_Sandbox/providers/Microsoft.Synapse/workspaces/aia-workspace/bigDataPools/Spark1",
+						"name": "Spark1",
+						"type": "Spark",
+						"endpoint": "https://aia-workspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/Spark1",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "2.4",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28,
+						"extraHeader": null
+					}
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "python"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%pyspark\r\n",
+							"df = spark.read.load('abfss://users@aialake.dfs.core.windows.net/NYCTripSmall.parquet', format='parquet')\r\n",
+							"display(df.limit(10))"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "python"
+							},
+							"collapsed": true
+						},
+						"source": [
+							"%%pyspark\r\n",
+							"spark.sql(\"CREATE DATABASE IF NOT EXISTS nyctaxi\")\r\n",
+							"df.write.mode(\"overwrite\").saveAsTable(\"nyctaxi.trip\")"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "python"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%pyspark\r\n",
+							"df = spark.sql(\"\"\"\r\n",
+							"   SELECT PassengerCount,\r\n",
+							"       SUM(TripDistanceMiles) as SumTripDistance,\r\n",
+							"       AVG(TripDistanceMiles) as AvgTripDistance\r\n",
+							"   FROM nyctaxi.trip\r\n",
+							"   WHERE TripDistanceMiles > 0 AND PassengerCount > 0\r\n",
+							"   GROUP BY PassengerCount\r\n",
+							"   ORDER BY PassengerCount\r\n",
+							"\"\"\") \r\n",
+							"display(df)\r\n",
+							"df.write.saveAsTable(\"nyctaxi.passengercountstats\")"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "python"
+							},
+							"collapsed": true
+						},
+						"source": [
+							"%%pyspark\r\n",
+							"df = spark.sql(\"SELECT * FROM nyctaxi.passengercountstats\")\r\n",
+							"df = df.repartition(1) # This ensure we'll get a single file during write()\r\n",
+							"df.write.mode(\"overwrite\").csv(\"/NYCTaxi/PassengerCountStats_csvformat\")\r\n",
+							"df.write.mode(\"overwrite\").parquet(\"/NYCTaxi/PassengerCountStats_parquetformat\")"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 7
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Call Duration Notebook')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 0,
+				"nbformat_minor": 0,
+				"bigDataPool": {
+					"referenceName": "postcall0spark0",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "56g",
+					"driverCores": 8,
+					"executorMemory": "56g",
+					"executorCores": 8,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/4a49a7f9-5e11-4cda-83e2-badfc3f2db28/resourceGroups/pfpostcallreference0rg0/providers/Microsoft.Synapse/workspaces/pfpostcallreference0sws0/bigDataPools/postcall0spark0",
+						"name": "postcall0spark0",
+						"type": "Spark",
+						"endpoint": "https://pfpostcallreference0sws0.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/postcall0spark0",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "2.4",
+						"nodeCount": 10,
+						"cores": 8,
+						"memory": 56,
+						"extraHeader": null
+					}
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "scala"
+							}
+						},
+						"source": [
+							"%%spark\n",
+							"val sql_pool = \"pfpostcallreference0sqlp0\"\n",
+							"val df = spark.read.sqlanalytics(\"%s.dbo.transcript\".format(sql_pool)) \n",
+							"df.createOrReplaceTempView( \"transcript\" )"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "python"
+							},
+							"collapsed": true
+						},
+						"source": [
+							"%%pyspark\r\n",
+							"# Calculate call duration using transcript information\r\n",
+							"\r\n",
+							"# Get 'transcripts dataframe'\r\n",
+							"df = spark.sql(\"SELECT FileName, Offset, Duration FROM transcript\")\r\n",
+							"\r\n",
+							"# Get highest 'Offset' for given 'FileName'\r\n",
+							"df_max_offset = df.select(\"*\").distinct().groupBy(\"FileName\").max(\"Offset\")\r\n",
+							"\r\n",
+							"# Get last 'Offset' and 'Duration' for a given 'FileName'\r\n",
+							"df_end_offset = df.join(df_max_offset, [\"FileName\"]) \\\r\n",
+							"                    .where(df[\"Offset\"] == df_max_offset[\"max(Offset)\"]) \\\r\n",
+							"                    .where(df[\"FileName\"] == df_max_offset[\"FileName\"]) \\\r\n",
+							"                    .drop(\"max(Offset)\")\r\n",
+							"\r\n",
+							"# Caculate 'EndOffset' for each 'FileName'\r\n",
+							"df_end_offset = df_end_offset.withColumn(\"callDurationTime\", (df_end_offset[\"Offset\"] + df_end_offset[\"Duration\"]) / 1000.0).distinct()\r\n",
+							"\r\n",
+							"# Create temp View of dataframe results\r\n",
+							"df_end_offset.createOrReplaceTempView(\"callDuration\")\r\n",
+							"df_end_offset.show()"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "scala"
+							},
+							"collapsed": true
+						},
+						"source": [
+							"%%spark\r\n",
+							"val scala_df = spark.sqlContext.sql(\"select * from callDuration\")\r\n",
+							"scala_df.write.sqlanalytics(\"%s.dbo.callDuration\".format(sql_pool), Constants.INTERNAL)"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							""
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": null
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Tutorial_Analyze_data_with_Apache_Spark')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "Spark1",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"synapse_widget": {
+						"version": "0.1"
+					},
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/dfccc97d-46f9-435b-bcfe-6be712e9cf56/resourceGroups/Synapse_Sandbox/providers/Microsoft.Synapse/workspaces/aia-workspace/bigDataPools/Spark1",
+						"name": "Spark1",
+						"type": "Spark",
+						"endpoint": "https://aia-workspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/Spark1",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "2.4",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28,
+						"extraHeader": null
+					}
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"import matplotlib.pyplot as plt\r\n",
+							"import seaborn as sns\r\n",
+							"import pandas as pd"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 1
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"from azureml.opendatasets import NycTlcYellow\r\n",
+							"from datetime import datetime\r\n",
+							"from dateutil import parser\r\n",
+							"\r\n",
+							"end_date = parser.parse('2018-06-06')\r\n",
+							"start_date = parser.parse('2018-05-01')\r\n",
+							"nyc_tlc = NycTlcYellow(start_date=start_date, end_date=end_date)\r\n",
+							"df = nyc_tlc.to_spark_dataframe()"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 2
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"# Filter the dataset \r\n",
+							"from pyspark.sql.functions import *\r\n",
+							"\r\n",
+							"filtered_df = df.select('vendorID', 'passengerCount', 'tripDistance','paymentType', 'fareAmount', 'tipAmount'\\\r\n",
+							"                                , date_format('tpepPickupDateTime', 'hh').alias('hour_of_day')\\\r\n",
+							"                                , dayofweek('tpepPickupDateTime').alias('day_of_week')\\\r\n",
+							"                                , dayofmonth(col('tpepPickupDateTime')).alias('day_of_month'))\\\r\n",
+							"                            .filter((df.passengerCount > 0)\\\r\n",
+							"                                & (df.tipAmount >= 0)\\\r\n",
+							"                                & (df.fareAmount >= 1) & (df.fareAmount <= 250)\\\r\n",
+							"                                & (df.tripDistance > 0) & (df.tripDistance <= 200))\r\n",
+							"\r\n",
+							"filtered_df.createOrReplaceTempView(\"taxi_dataset\")"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 3
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"SELECT \r\n",
+							"    day_of_month\r\n",
+							"    , MIN(tipAmount) AS minTipAmount\r\n",
+							"    , MAX(tipAmount) AS maxTipAmount\r\n",
+							"    , AVG(tipAmount) AS avgTipAmount\r\n",
+							"    , AVG(fareAmount) as fareAmount\r\n",
+							"FROM taxi_dataset \r\n",
+							"GROUP BY day_of_month\r\n",
+							"ORDER BY day_of_month ASC"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 4
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"# To make development easier, faster, and less expensive, downsample for now\r\n",
+							"sampled_taxi_df = filtered_df.sample(True, 0.001, seed=1234)\r\n",
+							"\r\n",
+							"# The charting package needs a Pandas DataFrame or NumPy array to do the conversion\r\n",
+							"sampled_taxi_pd_df = sampled_taxi_df.toPandas()"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 5
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"# Look at a histogram of tips by count by using Matplotlib\r\n",
+							"\r\n",
+							"ax1 = sampled_taxi_pd_df['tipAmount'].plot(kind='hist', bins=25, facecolor='lightblue')\r\n",
+							"ax1.set_title('Tip amount distribution')\r\n",
+							"ax1.set_xlabel('Tip Amount ($)')\r\n",
+							"ax1.set_ylabel('Counts')\r\n",
+							"plt.suptitle('')\r\n",
+							"plt.show()"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 6
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"# View the distribution of tips by day of week using Seaborn\r\n",
+							"ax = sns.boxplot(x=\"day_of_week\", y=\"tipAmount\",data=sampled_taxi_pd_df, showfliers = False)\r\n",
+							"ax.set_title('Tip amount distribution per day')\r\n",
+							"ax.set_xlabel('Day of Week')\r\n",
+							"ax.set_ylabel('Tip Amount ($)')\r\n",
+							"plt.show()"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 7
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"# How many passengers tipped by various amounts \r\n",
+							"ax2 = sampled_taxi_pd_df.boxplot(column=['tipAmount'], by=['passengerCount'])\r\n",
+							"ax2.set_title('Tip amount by Passenger count')\r\n",
+							"ax2.set_xlabel('Passenger count')\r\n",
+							"ax2.set_ylabel('Tip Amount ($)')\r\n",
+							"ax2.set_ylim(0,30)\r\n",
+							"plt.suptitle('')\r\n",
+							"plt.show()"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 8
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": true
+						},
+						"source": [
+							"# Look at the relationship between fare and tip amounts\r\n",
+							"\r\n",
+							"ax = sampled_taxi_pd_df.plot(kind='scatter', x= 'fareAmount', y = 'tipAmount', c='blue', alpha = 0.10, s=2.5*(sampled_taxi_pd_df['passengerCount']))\r\n",
+							"ax.set_title('Tip amount by Fare amount')\r\n",
+							"ax.set_xlabel('Fare Amount ($)')\r\n",
+							"ax.set_ylabel('Tip Amount ($)')\r\n",
+							"plt.axis([-2, 80, -2, 20])\r\n",
+							"plt.suptitle('')\r\n",
+							"plt.show()"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 9
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/View Parquet Data')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "Spark1",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"synapse_widget": {
+						"version": "0.1",
+						"state": {
+							"183d15ef-b522-47db-8afb-0184d3dffda5": {
+								"type": "Synapse.DataFrame",
+								"sync_state": {
+									"table": {
+										"rows": [
+											{
+												"PassengerCount": 1,
+												"SumTripDistance": 190167.33999999636,
+												"AvgTripDistance": 2.8735733929704184
+											},
+											{
+												"PassengerCount": 3,
+												"SumTripDistance": 14790.389999999987,
+												"AvgTripDistance": 2.884803978935047
+											},
+											{
+												"PassengerCount": 5,
+												"SumTripDistance": 17187.240000000013,
+												"AvgTripDistance": 2.8550232558139554
+											},
+											{
+												"PassengerCount": 2,
+												"SumTripDistance": 49399.7400000001,
+												"AvgTripDistance": 3.130726915520635
+											},
+											{
+												"PassengerCount": 4,
+												"SumTripDistance": 8558.350000000004,
+												"AvgTripDistance": 2.9976707530648
+											},
+											{
+												"PassengerCount": 6,
+												"SumTripDistance": 10741.91,
+												"AvgTripDistance": 2.8798686327077747
+											}
+										],
+										"schema": {
+											"PassengerCount": "int",
+											"SumTripDistance": "double",
+											"AvgTripDistance": "double"
+										}
+									},
+									"isSummary": false,
+									"language": "scala"
+								},
+								"persist_state": {
+									"view": {
+										"type": "details",
+										"chartOptions": {
+											"chartType": "bar",
+											"aggregationType": "sum",
+											"categoryFieldKeys": [
+												"SumTripDistance"
+											],
+											"seriesFieldKeys": [
+												"PassengerCount"
+											],
+											"isStacked": false
+										}
+									}
+								}
+							}
+						}
+					},
+					"kernelspec": {
+						"name": "synapse_pyspark",
+						"display_name": "Synapse PySpark"
+					},
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/dfccc97d-46f9-435b-bcfe-6be712e9cf56/resourceGroups/Synapse_Sandbox/providers/Microsoft.Synapse/workspaces/aia-workspace/bigDataPools/Spark1",
+						"name": "Spark1",
+						"type": "Spark",
+						"endpoint": "https://aia-workspace.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/Spark1",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net"
+						},
+						"sparkVersion": "2.4",
+						"nodeCount": 10,
+						"cores": 4,
+						"memory": 28,
+						"extraHeader": null
+					}
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "python"
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%pyspark\r\n",
+							"df = spark.read.load('abfss://users@aialake.dfs.core.windows.net/NYCTaxi/PassengerCountStats_parquetformat/part-00000-a6090d0f-8375-439d-ade8-de7785605607-c000.snappy.parquet', format='parquet')\r\n",
+							"display(df.limit(10))"
+						],
+						"attachments": null,
+						"outputs": [],
+						"execution_count": 4
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQLPOOL1')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"restorePointInTime": "0001-01-01T00:00:00",
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus"
+		}
+	]
+}
